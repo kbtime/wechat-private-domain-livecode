@@ -195,6 +195,21 @@ export class Storage {
 
     const liveCode = liveCodes[liveCodeIndex];
 
+    // 阈值模式：检查是否需要重置计数（循环逻辑）
+    if (liveCode.distributionMode === 'THRESHOLD') {
+      const enabledSubCodes = liveCode.subCodes.filter(s => s.status === 'enabled');
+      const allReachedThreshold = enabledSubCodes.every(s => s.currentPv >= s.threshold);
+
+      // 如果所有子码都达到阈值，重置所有计数并从头开始
+      if (allReachedThreshold && enabledSubCodes.length > 0) {
+        liveCode.subCodes.forEach(sub => {
+          if (sub.status === 'enabled') {
+            sub.currentPv = 0;
+          }
+        });
+      }
+    }
+
     // 增加总访问量
     liveCode.totalPv += 1;
     liveCode.updatedAt = new Date().toISOString();
