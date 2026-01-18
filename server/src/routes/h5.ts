@@ -34,9 +34,9 @@ export async function h5Routes(fastify: FastifyInstance) {
         success: true,
         data: {
           liveCodeId: id,
-          title: liveCode.name || '扫码页面标题',
+          title: liveCode.h5Title || liveCode.name || '扫码页面标题',
           qrCodeUrl: subCode.qrUrl,
-          description: '添加微信好友',
+          description: liveCode.h5Description || '添加微信好友',
           status: 'active'
         }
       };

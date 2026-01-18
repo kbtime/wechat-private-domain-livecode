@@ -122,7 +122,10 @@ export class Storage {
       subCodes,
       mainUrl: `https://${ADMIN_DOMAIN}/api/link?id=${id}`,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      // H5 页面配置（使用默认值或请求中的值）
+      h5Title: request.h5Title || undefined,
+      h5Description: request.h5Description || undefined
     };
 
     liveCodes.unshift(newLiveCode);

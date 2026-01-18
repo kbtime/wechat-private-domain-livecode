@@ -25,6 +25,9 @@ export interface LiveCode {
   createdAt?: string;
   updatedAt?: string;
   domainConfig?: DomainConfig;  // 域名配置（可选）
+  // H5 页面配置
+  h5Title?: string;        // H5 页面标题（导航栏）
+  h5Description?: string;  // H5 页面描述（二维码下方说明）
 }
 
 export interface DashboardStats {
@@ -55,6 +58,9 @@ export interface CreateLiveCodeRequest {
   name: string;
   distributionMode: DistributionMode;
   subCodes: SubCode[];
+  // H5 页面配置（可选）
+  h5Title?: string;
+  h5Description?: string;
 }
 
 export interface UpdateLiveCodeRequest {
@@ -62,6 +68,9 @@ export interface UpdateLiveCodeRequest {
   distributionMode?: DistributionMode;
   subCodes?: SubCode[];
   status?: 'running' | 'paused';
+  // H5 页面配置（可选）
+  h5Title?: string;
+  h5Description?: string;
 }
 
 export interface Statistics {

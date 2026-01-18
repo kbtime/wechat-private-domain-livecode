@@ -33,6 +33,9 @@ export interface LiveCode {
   createdAt?: string;      // 创建时间
   updatedAt?: string;      // 更新时间
   domainConfig?: DomainConfig;  // 域名配置（可选）
+  // H5 页面配置
+  h5Title?: string;        // H5 页面标题（导航栏），默认"扫码页面标题"
+  h5Description?: string;  // H5 页面描述（二维码下方说明），默认"添加微信好友"
 }
 
 /**
@@ -42,6 +45,9 @@ export interface CreateLiveCodeRequest {
   name: string;
   distributionMode: DistributionMode;
   subCodes: Omit<SubCode, 'id' | 'currentPv'>[];
+  // H5 页面配置（可选）
+  h5Title?: string;
+  h5Description?: string;
 }
 
 /**
@@ -52,6 +58,9 @@ export interface UpdateLiveCodeRequest {
   distributionMode?: DistributionMode;
   subCodes?: SubCode[];
   status?: 'running' | 'paused';
+  // H5 页面配置（可选）
+  h5Title?: string;
+  h5Description?: string;
 }
 
 /**

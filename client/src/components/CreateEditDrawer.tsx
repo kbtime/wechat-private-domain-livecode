@@ -29,6 +29,10 @@ export const CreateEditDrawer: React.FC<CreateEditDrawerProps> = ({ code, onClos
   const [error, setError] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // H5 页面配置
+  const [h5Title, setH5Title] = useState(code?.h5Title || '');
+  const [h5Description, setH5Description] = useState(code?.h5Description || '');
+
   // 生成唯一 ID
   const generateId = () => `subcode_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -140,7 +144,10 @@ export const CreateEditDrawer: React.FC<CreateEditDrawerProps> = ({ code, onClos
       const data: Partial<LiveCode> = {
         name,
         distributionMode,
-        subCodes
+        subCodes,
+        // H5 页面配置（只保存非空值）
+        ...(h5Title.trim() && { h5Title: h5Title.trim() }),
+        ...(h5Description.trim() && { h5Description: h5Description.trim() })
       };
       if (isEdit) {
         data.id = code.id;
@@ -233,6 +240,49 @@ export const CreateEditDrawer: React.FC<CreateEditDrawerProps> = ({ code, onClos
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* H5 页面配置 */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              H5 页面设置
+            </h3>
+
+            {/* H5 页面标题 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                H5 页面标题
+                <span className="ml-1 text-xs text-gray-400 font-normal">（导航栏显示，默认使用活码名称）</span>
+              </label>
+              <input
+                type="text"
+                value={h5Title}
+                onChange={(e) => setH5Title(e.target.value)}
+                placeholder="留空则使用活码名称"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                用户扫码后页面顶部导航栏显示的标题
+              </p>
+            </div>
+
+            {/* H5 页面描述 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                页面说明文字
+                <span className="ml-1 text-xs text-gray-400 font-normal">（二维码下方显示）</span>
+              </label>
+              <input
+                type="text"
+                value={h5Description}
+                onChange={(e) => setH5Description(e.target.value)}
+                placeholder="留空则显示默认提示"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                二维码下方显示的说明文字，引导用户操作
+              </p>
             </div>
           </div>
 
