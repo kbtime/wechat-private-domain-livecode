@@ -14,6 +14,7 @@ import type {
 } from './types.js';
 
 const DATA_FILE_PATH = process.env.DATA_FILE_PATH || './data/live-codes.json';
+const ADMIN_DOMAIN = process.env.ADMIN_DOMAIN || 'hm.wx11.top';
 
 /**
  * 默认炮灰域名配置
@@ -119,7 +120,7 @@ export class Storage {
       distributionMode: request.distributionMode,
       totalPv: 0,
       subCodes,
-      mainUrl: `https://caoliao.api/link?id=${id}`,
+      mainUrl: `https://${ADMIN_DOMAIN}/api/link?id=${id}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

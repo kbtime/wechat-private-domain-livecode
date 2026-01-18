@@ -266,15 +266,20 @@ export async function liveCodeRoutes(fastify: FastifyInstance) {
         return response;
       }
 
-      // 返回推广信息（使用 mainUrl 作为推广链接）
+      // 优先使用主域名，否则使用 mainUrl（管理后台域名）
+      const promotionUrl = liveCode.domainConfig?.primaryDomain?.domain
+        ? `https://${liveCode.domainConfig.primaryDomain.domain}/api/link?id=${id}`
+        : liveCode.mainUrl;
+
+      // 返回推广信息
       const response: ApiResponse<{
         shortUrl: string;
         qrCode: string;
       }> = {
         success: true,
         data: {
-          shortUrl: liveCode.mainUrl,
-          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(liveCode.mainUrl)}`
+          shortUrl: promotionUrl,
+          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(promotionUrl)}`
         }
       };
       return response;

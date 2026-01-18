@@ -27,10 +27,11 @@ export async function linkRoutes(fastify: FastifyInstance) {
         return reply.code(302).header('Location', '/h5/error.html').send();
       }
 
-      // 选择域名
+      // 选择域名（优先使用炮灰域名用于落地）
       const domainSelection = await domainPoolStorage.selectDomainForLiveCode({
         primaryDomain: liveCode.domainConfig?.primaryDomain,
         fallbackDomainIds: liveCode.domainConfig?.fallbackDomains.domainIds,
+        selectionMode: liveCode.domainConfig?.fallbackDomains.selectionMode,
         strategy: liveCode.domainConfig?.strategy || 'round-robin',
         failoverEnabled: liveCode.domainConfig?.fallbackDomains.failoverEnabled
       });

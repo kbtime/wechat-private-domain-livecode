@@ -436,44 +436,47 @@ export class DomainPoolStorage {
 
   /**
    * 根据策略为活码选择域名（集成故障转移逻辑）
+   *
+   * 架构说明：
+   * - 主域名：作为入口（推广码链接），不用于落地
+   * - 炮灰域名：用于落地显示 H5 页面
+   *
+   * 扫码流程：
+   * 1. 用户扫描推广码 → 访问 主域名/api/link?id=xxx
+   * 2. 系统从炮灰域名中选择一个
+   * 3. 302 重定向到 炮灰域名/h5/landing.html?id=xxx
    */
   async selectDomainForLiveCode(liveCodeDomainConfig: {
     primaryDomain?: { domainId: string; domain: string; protocol: 'http' | 'https' } | null;
     fallbackDomainIds?: string[];
+    selectionMode?: 'sequential' | 'random' | 'round-robin';
     strategy: SelectionStrategy;
     failoverEnabled?: boolean;
   }): Promise<{ domain: string; protocol: 'http' | 'https'; role: 'primary' | 'fallback' } | null> {
     const data = await this.readAll();
 
-    // 优先使用主域名
-    if (liveCodeDomainConfig.primaryDomain) {
-      const primaryDomain = data.domains.find(d => d.id === liveCodeDomainConfig.primaryDomain?.domainId);
-      if (primaryDomain && primaryDomain.status === 'active') {
+    // 第一步：优先使用活码配置的炮灰域名（落地展示策略）
+    if (liveCodeDomainConfig.fallbackDomainIds && liveCodeDomainConfig.fallbackDomainIds.length > 0) {
+      const selectionMode = liveCodeDomainConfig.selectionMode || 'sequential';
+
+      // 根据落地展示策略选择域名
+      const selectedDomain = await this.selectFallbackDomain(
+        liveCodeDomainConfig.fallbackDomainIds,
+        selectionMode,
+        data
+      );
+
+      if (selectedDomain) {
         return {
-          domain: primaryDomain.domain,
-          protocol: primaryDomain.protocol,
-          role: 'primary'
+          domain: selectedDomain.domain,
+          protocol: selectedDomain.protocol,
+          role: 'fallback'
         };
       }
     }
 
-    // 主域名不可用，检查是否启用故障转移
-    if (liveCodeDomainConfig.failoverEnabled && liveCodeDomainConfig.fallbackDomainIds && liveCodeDomainConfig.fallbackDomainIds.length > 0) {
-      // 按优先级查找可用的备用域名
-      for (const domainId of liveCodeDomainConfig.fallbackDomainIds) {
-        const fallbackDomain = data.domains.find(d => d.id === domainId);
-        if (fallbackDomain && fallbackDomain.status === 'active') {
-          return {
-            domain: fallbackDomain.domain,
-            protocol: fallbackDomain.protocol,
-            role: 'fallback'
-          };
-        }
-      }
-    }
-
-    // 如果没有配置主域名，使用域名池的全局选择逻辑
-    if (!liveCodeDomainConfig.primaryDomain && data.config.isActive) {
+    // 第二步：如果没有配置炮灰域名，使用域名池的全局选择逻辑
+    if (data.config.isActive) {
       const selection = await this.selectDomain();
       if (selection) {
         const domain = data.domains.find(d => d.id === selection.domainId);
@@ -487,7 +490,63 @@ export class DomainPoolStorage {
       }
     }
 
+    // 第三步：都没有可用域名，返回 null（会显示 404 错误页）
     return null;
+  }
+
+  /**
+   * 根据落地展示策略选择炮灰域名
+   */
+  private async selectFallbackDomain(
+    domainIds: string[],
+    selectionMode: 'sequential' | 'random' | 'round-robin',
+    data: DomainPoolData
+  ): Promise<Domain | null> {
+    // 获取所有 active 状态的炮灰域名
+    const availableDomains = data.domains.filter(d =>
+      domainIds.includes(d.id) && d.status === 'active'
+    );
+
+    if (availableDomains.length === 0) {
+      return null;
+    }
+
+    switch (selectionMode) {
+      case 'sequential':
+        // 顺序模式：选择第一个可用域名
+        return availableDomains[0];
+
+      case 'random':
+        // 随机模式：随机选择一个域名
+        const randomIndex = Math.floor(Math.random() * availableDomains.length);
+        return availableDomains[randomIndex];
+
+      case 'round-robin':
+        // 轮询模式：使用全局轮询逻辑
+        const sortedDomains = [...availableDomains].sort((a, b) => a.order - b.order);
+        let selectedIndex = sortedDomains.findIndex(
+          d => d.order === data.config.currentIndex
+        );
+
+        if (selectedIndex === -1) {
+          selectedIndex = 0;
+        }
+
+        const selectedDomain = sortedDomains[selectedIndex];
+        if (!selectedDomain) {
+          return null;
+        }
+
+        // 更新 currentIndex 到下一个域名
+        const nextIndex = (selectedIndex + 1) % sortedDomains.length;
+        data.config.currentIndex = sortedDomains[nextIndex].order;
+        await this.writeAll(data);
+
+        return selectedDomain;
+
+      default:
+        return availableDomains[0];
+    }
   }
 }
 
