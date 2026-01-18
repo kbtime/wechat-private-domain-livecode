@@ -145,10 +145,20 @@ export class Storage {
       return null;
     }
 
+    // 如果更新了 subCodes，重置每个子码的 currentPv（编辑后重新开始计数）
+    let updatedSubCodes = updates.subCodes;
+    if (updatedSubCodes) {
+      updatedSubCodes = updatedSubCodes.map(sub => ({
+        ...sub,
+        currentPv: 0 // 编辑子码时重置访问计数
+      }));
+    }
+
     // 更新字段，保留原有值
     liveCodes[index] = {
       ...liveCodes[index],
       ...updates,
+      ...(updatedSubCodes && { subCodes: updatedSubCodes }),
       id, // 确保 ID 不被修改
       updatedAt: new Date().toISOString()
     };
