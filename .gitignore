@@ -1,0 +1,49 @@
+# 环境变量和敏感信息
+.env
+.env.*
+*.key
+*.pem
+*.secret
+
+# 依赖和构建产物
+node_modules/
+dist/
+build/
+*.log
+*.tgz
+
+# 数据文件
+server/data/*.json
+!server/data/.gitkeep
+
+# IDE和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# Docker相关
+.dockerignore
+
+# 部署脚本（可能包含敏感信息）
+deploy.sh
+
+# Claude相关
+.claude/
+
+# SSH配置
+.ssh/
+# Add docker-compose.yml to .gitignore
+docker-compose.yml

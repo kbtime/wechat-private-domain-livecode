@@ -1,0 +1,64 @@
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ID=${BUILD_ID:-20260118-local}
+    container_name: huoma-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+        - PORT=3001
+        - JWT_SECRET=your-secret-key-change-in-production
+        - ADMIN_PASSWORD=admin123
+        - OSS_ENABLED=true
+        - OSS_ENDPOINT=oss-cn-shenzhen.aliyuncs.com
+        - OSS_BUCKET=your-bucket-name
+        - OSS_BUCKET_PATH_PREFIX=wxhm
+        - OSS_ACCESS_KEY_ID=your-access-key-id
+        - OSS_ACCESS_KEY_SECRET=your-access-key-secret
+    volumes:
+        # 挂载数据目录，确保数据持久化
+        - ./server/data:/app/data
+    networks:
+      - huoma-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:3001
+        - BUILD_ID=${BUILD_ID:-20260118-local}
+    container_name: huoma-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - huoma-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  huoma-network:
+    driver: bridge
+
+volumes:
+  huoma-data:
+    driver: local

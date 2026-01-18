@@ -1,0 +1,37 @@
+{
+  "name": "linkos-admin-server",
+  "version": "1.0.0",
+  "description": "LinkOS Admin Backend Server",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "fastify",
+    "live-code",
+    "admin"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/multipart": "^9.3.0",
+    "@fastify/static": "^9.0.0",
+    "@types/ali-oss": "^6.23.0",
+    "ali-oss": "^6.23.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.2.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/qrcode": "^1.5.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
