@@ -3,11 +3,16 @@ import { authRoutes } from './auth.js';
 import { liveCodeRoutes } from './live-codes.js';
 import { uploadRoutes } from './upload.js';
 import { domainPoolRoutes } from './domain-pool.js';
+import { h5Routes } from './h5.js';
+import { linkRoutes } from './link.js';
 
 /**
  * 注册所有路由
  */
 export async function registerRoutes(fastify: FastifyInstance) {
+  // 活码访问入口（需要在其他路由之前注册）
+  await linkRoutes(fastify);
+
   // 认证路由
   await authRoutes(fastify);
 
@@ -19,6 +24,9 @@ export async function registerRoutes(fastify: FastifyInstance) {
 
   // 域名池管理路由
   await domainPoolRoutes(fastify);
+
+  // H5 用户端路由
+  await h5Routes(fastify);
 
   // 健康检查
   fastify.get('/health', async () => {

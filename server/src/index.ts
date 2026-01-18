@@ -53,8 +53,12 @@ await fastify.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
+// 注册静态文件服务（H5 页面）
+await fastify.register(staticFiles, {
+  root: path.join(__dirname, '../public/h5'),
+  prefix: '/h5/', // 可选：添加 URL 前缀
+});
 
- 
 // 注册所有路由
 await registerRoutes(fastify);
 

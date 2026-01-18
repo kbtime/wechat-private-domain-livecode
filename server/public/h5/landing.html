@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扫码页面标题</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #F5F5F5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      height: 44px;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-back {
+      font-size: 20px;
+      color: #333;
+      margin-right: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px 80px;
+    }
+
+    .qrcode {
+      width: 200px;
+      height: 200px;
+      background: #FFFFFF;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .qrcode img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .qrcode-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F0F0F0;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .hint {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #666666;
+    }
+
+    .description {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #1890ff;
+      font-weight: 500;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      text-align: center;
+      background: #F5F5F5;
+    }
+
+    .footer p {
+      font-size: 12px;
+      color: #999999;
+    }
+
+    /* Loading state */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-back">←</span>
+    <span class="header-title" id="pageTitle">扫码页面标题</span>
+  </div>
+  <div class="content" id="content">
+    <div class="qrcode">
+      <div class="qrcode-placeholder" id="qrcodePlaceholder">加载中...</div>
+      <img id="qrcodeImage" src="" alt="二维码" style="display: none;">
+    </div>
+    <p class="hint">请长按识别二维码</p>
+    <p class="description" id="description">添加微信好友</p>
+  </div>
+  <div class="footer">
+    <p>© 2025 LinkOS</p>
+  </div>
+
+  <script>
+    // 从 URL 参数获取活码 ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const liveCodeId = urlParams.get('id');
+
+    if (!liveCodeId) {
+      // 没有 ID，显示 404
+      document.getElementById('qrcodePlaceholder').textContent = '参数错误';
+      document.getElementById('description').textContent = '请扫描正确的二维码';
+    } else {
+      // 获取活码内容
+      fetch(`/api/h5/live-code/${liveCodeId}`)
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            // 更新页面内容
+            const data = result.data;
+            document.getElementById('pageTitle').textContent = data.title || '扫码页面标题';
+            document.getElementById('description').textContent = data.description || '添加微信好友';
+
+            // 显示二维码
+            const img = document.getElementById('qrcodeImage');
+            const placeholder = document.getElementById('qrcodePlaceholder');
+            img.src = data.qrCodeUrl;
+            img.onload = () => {
+              img.style.display = 'block';
+              placeholder.style.display = 'none';
+            };
+            img.onerror = () => {
+              placeholder.textContent = '二维码加载失败';
+            };
+
+            // 数据上报
+            fetch('/api/h5/analytics', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                liveCodeId: liveCodeId,
+                domainUsed: window.location.hostname,
+                timestamp: new Date().toISOString()
+              })
+            }).catch(() => {}); // 静默失败
+          } else {
+            // 活码不存在或已停用
+            document.getElementById('qrcodePlaceholder').textContent = '二维码已失效';
+            document.getElementById('description').textContent = result.message || '该二维码已失效或不存在';
+          }
+        })
+        .catch(error => {
+          console.error('获取活码失败:', error);
+          document.getElementById('qrcodePlaceholder').textContent = '加载失败';
+          document.getElementById('description').textContent = '请稍后重试';
+        });
+    }
+
+    // 返回按钮
+    document.querySelector('.header-back').addEventListener('click', () => {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // 没有历史记录，关闭窗口（如果可以）
+        window.close();
+      }
+    });
+  </script>
+</body>
+</html>
