@@ -86,11 +86,13 @@ async function runHealthCheck() {
           await domainPoolStorage.resetDomainFailure(domain.id);
           fastify.log.info(`[HealthCheck] ✅ ${domain.domain} - OK (${responseTime}ms)`);
         } else {
-          await domainPoolStorage.recordDomainFailure(domain.id);
+          // 健康检查失败不触发封禁，只记录状态
+          await domainPoolStorage.recordHealthCheckFailure(domain.id);
           fastify.log.warn(`[HealthCheck] ❌ ${domain.domain} - HTTP ${response.status}`);
         }
       } catch (error) {
-        await domainPoolStorage.recordDomainFailure(domain.id);
+        // 健康检查失败不触发封禁，只记录状态
+        await domainPoolStorage.recordHealthCheckFailure(domain.id);
         fastify.log.error(`[HealthCheck] ❌ ${domain.domain} - ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }

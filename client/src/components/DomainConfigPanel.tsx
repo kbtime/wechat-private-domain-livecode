@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Server, Lock, AlertCircle, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle } from 'lucide-react';
+import { Server, Lock, AlertCircle, Plus, Trash2, ChevronUp, ChevronDown, CheckCircle, BarChart3 } from 'lucide-react';
 import { liveCodeApi, domainPoolApi } from '../api';
-import type { DomainConfig, Domain } from '../types';
+import type { DomainConfig, Domain, FallbackSelectionMode } from '../types';
 
 interface DomainConfigPanelProps {
   liveCodeId: string;
@@ -54,6 +54,19 @@ export function DomainConfigPanel({ liveCodeId, liveCodeName }: DomainConfigPane
       fallbackDomains: {
         ...config.fallbackDomains,
         failoverEnabled: !config.fallbackDomains.failoverEnabled,
+      },
+    });
+  };
+
+  // 更改落地展示策略
+  const handleChangeSelectionMode = async (mode: FallbackSelectionMode) => {
+    if (!config) return;
+    await saveConfig({
+      ...config,
+      fallbackDomains: {
+        ...config.fallbackDomains,
+        selectionMode: mode,
+        currentIndex: 0, // 重置索引
       },
     });
   };
@@ -354,6 +367,49 @@ export function DomainConfigPanel({ liveCodeId, liveCodeName }: DomainConfigPane
           </label>
         </div>
 
+        {/* 落地展示策略选择 */}
+        <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+          <label className="block text-sm font-medium text-gray-700 mb-2">落地展示策略</label>
+          <select
+            value={config.fallbackDomains.selectionMode || 'sequential'}
+            onChange={(e) => handleChangeSelectionMode(e.target.value as FallbackSelectionMode)}
+            disabled={saving}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          >
+            <option value="sequential">顺序模式 - 按1→2→3顺序循环跳转</option>
+            <option value="random">随机模式 - 随机选择跳转</option>
+            <option value="round-robin">轮询模式 - 循环遍历确保均匀分配</option>
+          </select>
+        </div>
+
+        {/* 统计信息 */}
+        {config.fallbackDomains.stats && (
+          <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">统计信息</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-gray-500">总跳转次数</div>
+                <div className="font-semibold text-gray-900">{config.fallbackDomains.stats.totalRedirects || 0}</div>
+              </div>
+              {(config.fallbackDomains.selectionMode === 'sequential' || config.fallbackDomains.selectionMode === 'round-robin') && (
+                <div>
+                  <div className="text-gray-500">当前跳转位置</div>
+                  <div className="font-semibold text-gray-900">第 {config.fallbackDomains.currentIndex || 0} 个</div>
+                </div>
+              )}
+              {config.fallbackDomains.stats.lastRedirectAt && (
+                <div className="col-span-2">
+                  <div className="text-gray-500">最后跳转时间</div>
+                  <div className="text-xs text-gray-700">{new Date(config.fallbackDomains.stats.lastRedirectAt).toLocaleString()}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 炮灰域名列表 */}
         {config.fallbackDomains.domainIds.length > 0 ? (
           <div className="space-y-2 mb-3">
@@ -375,6 +431,16 @@ export function DomainConfigPanel({ liveCodeId, liveCodeName }: DomainConfigPane
                     <div className="font-mono text-sm font-medium text-gray-900 truncate">
                       {domain.protocol}://{domain.domain}
                     </div>
+                    {config.fallbackDomains.stats?.domainStats?.[domainId] && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        使用: {config.fallbackDomains.stats.domainStats[domainId].redirectCount} 次
+                        {config.fallbackDomains.stats.totalRedirects > 0 && (
+                          <span className="ml-1">
+                            ({((config.fallbackDomains.stats.domainStats[domainId].redirectCount / config.fallbackDomains.stats.totalRedirects) * 100).toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <button

@@ -130,7 +130,7 @@ export class DomainPoolStorage {
       id: `domain-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       domain: request.domain,
       protocol: request.protocol || 'https',
-      status: 'testing',
+      status: 'active',  // 新域名默认为活跃状态
       weight: request.weight ?? 1,
       order: request.order ?? (maxOrder + 1),
       healthCheckUrl: request.healthCheckUrl || '/health',
@@ -336,7 +336,7 @@ export class DomainPoolStorage {
   }
 
   /**
-   * 记录域名失败
+   * 记录域名失败（用于实际请求失败，会触发封禁）
    */
   async recordDomainFailure(domainId: string): Promise<void> {
     const data = await this.readAll();
@@ -352,6 +352,27 @@ export class DomainPoolStorage {
       if (domain.failureCount >= data.config.maxFailures) {
         domain.status = 'banned';
       }
+
+      await this.writeAll(data);
+    }
+  }
+
+  /**
+   * 记录健康检查失败（不触发封禁，只记录状态）
+   */
+  async recordHealthCheckFailure(domainId: string): Promise<void> {
+    const data = await this.readAll();
+    const domain = data.domains.find(d => d.id === domainId);
+
+    if (domain) {
+      // 只更新最后检查时间和总失败数（用于统计），不增加 failureCount
+      domain.totalFailures++;
+      domain.lastFailureTime = new Date().toISOString();
+      domain.lastCheckTime = new Date().toISOString();
+      domain.updatedAt = new Date().toISOString();
+
+      // 不修改 status，保持原状态（active/inactive/banned）
+      // 不增加 failureCount，因此不会触发自动封禁
 
       await this.writeAll(data);
     }

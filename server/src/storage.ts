@@ -9,10 +9,29 @@ import type {
   UpdateDomainConfigRequest,
   BindPrimaryDomainRequest,
   PrimaryDomainConfig,
-  FallbackDomainConfig
+  FallbackDomainConfig,
+  FallbackSelectionMode
 } from './types.js';
 
 const DATA_FILE_PATH = process.env.DATA_FILE_PATH || './data/live-codes.json';
+
+/**
+ * 默认炮灰域名配置
+ */
+function createDefaultFallbackDomains(): FallbackDomainConfig {
+  return {
+    domainIds: [],
+    priority: [],
+    selectionMode: 'sequential',
+    currentIndex: 0,
+    stats: {
+      totalRedirects: 0,
+      domainStats: {}
+    },
+    updatedAt: new Date().toISOString(),
+    failoverEnabled: false
+  };
+}
 
 /**
  * JSON 文件存储层
@@ -206,20 +225,30 @@ export class Storage {
     if (!liveCode.domainConfig) {
       liveCode.domainConfig = {
         mode: 'CUSTOM_DOMAINS',
-        fallbackDomains: {
-          domainIds: [],
-          priority: [],
-          updatedAt: new Date().toISOString(),
-          failoverEnabled: false
-        },
+        fallbackDomains: createDefaultFallbackDomains(),
         strategy: 'round-robin'
+      };
+    }
+
+    // 确保炮灰域名配置有必需的字段（向后兼容）
+    if (!liveCode.domainConfig.fallbackDomains.selectionMode) {
+      liveCode.domainConfig.fallbackDomains.selectionMode = 'sequential';
+    }
+    if (!liveCode.domainConfig.fallbackDomains.currentIndex) {
+      liveCode.domainConfig.fallbackDomains.currentIndex = 0;
+    }
+    if (!liveCode.domainConfig.fallbackDomains.stats) {
+      liveCode.domainConfig.fallbackDomains.stats = {
+        totalRedirects: 0,
+        domainStats: {}
       };
     }
 
     // 更新备用域名配置
     if (updates.fallbackDomains) {
       liveCode.domainConfig.fallbackDomains = {
-        ...updates.fallbackDomains,
+        ...liveCode.domainConfig.fallbackDomains, // 保留现有字段
+        ...updates.fallbackDomains, // 覆盖更新的字段
         updatedAt: new Date().toISOString()
       };
     }
@@ -265,13 +294,22 @@ export class Storage {
     if (!liveCode.domainConfig) {
       liveCode.domainConfig = {
         mode: 'CUSTOM_DOMAINS',
-        fallbackDomains: {
-          domainIds: [],
-          priority: [],
-          updatedAt: new Date().toISOString(),
-          failoverEnabled: false
-        },
+        fallbackDomains: createDefaultFallbackDomains(),
         strategy: 'round-robin'
+      };
+    }
+
+    // 确保炮灰域名配置有必需的字段（向后兼容）
+    if (!liveCode.domainConfig.fallbackDomains.selectionMode) {
+      liveCode.domainConfig.fallbackDomains.selectionMode = 'sequential';
+    }
+    if (!liveCode.domainConfig.fallbackDomains.currentIndex) {
+      liveCode.domainConfig.fallbackDomains.currentIndex = 0;
+    }
+    if (!liveCode.domainConfig.fallbackDomains.stats) {
+      liveCode.domainConfig.fallbackDomains.stats = {
+        totalRedirects: 0,
+        domainStats: {}
       };
     }
 
@@ -326,6 +364,97 @@ export class Storage {
     liveCode.updatedAt = new Date().toISOString();
 
     await this.writeAll(liveCodes);
+
+    return liveCode.domainConfig;
+  }
+
+  /**
+   * 选择炮灰域名（根据落地展示策略）
+   */
+  async selectFallbackDomain(liveCodeId: string): Promise<{ domainId: string; index: number } | null> {
+    const liveCode = await this.findById(liveCodeId);
+    if (!liveCode?.domainConfig?.fallbackDomains) {
+      return null;
+    }
+
+    const fallbackDomains = liveCode.domainConfig.fallbackDomains;
+    const domainCount = fallbackDomains.domainIds.length;
+
+    if (domainCount === 0) {
+      return null;
+    }
+
+    let selectedIndex: number;
+
+    // 根据选择模式选择域名
+    switch (fallbackDomains.selectionMode) {
+      case 'sequential':
+        // 顺序模式：按1→2→3顺序循环
+        selectedIndex = (fallbackDomains.currentIndex || 0) % domainCount;
+        break;
+
+      case 'random':
+        // 随机模式：随机选择
+        selectedIndex = Math.floor(Math.random() * domainCount);
+        break;
+
+      case 'round-robin':
+        // 轮询模式：循环遍历
+        selectedIndex = (fallbackDomains.currentIndex || 0) % domainCount;
+        break;
+
+      default:
+        selectedIndex = 0;
+    }
+
+    // 更新索引（用于顺序/轮询模式）
+    if (fallbackDomains.selectionMode === 'sequential' || fallbackDomains.selectionMode === 'round-robin') {
+      fallbackDomains.currentIndex = (selectedIndex + 1) % domainCount;
+    }
+
+    // 更新统计信息
+    const selectedDomainId = fallbackDomains.domainIds[selectedIndex];
+    fallbackDomains.stats.totalRedirects += 1;
+    fallbackDomains.stats.lastRedirectAt = new Date().toISOString();
+
+    if (!fallbackDomains.stats.domainStats[selectedDomainId]) {
+      fallbackDomains.stats.domainStats[selectedDomainId] = {
+        redirectCount: 0
+      };
+    }
+    fallbackDomains.stats.domainStats[selectedDomainId].redirectCount += 1;
+    fallbackDomains.stats.domainStats[selectedDomainId].lastRedirectAt = new Date().toISOString();
+
+    fallbackDomains.updatedAt = new Date().toISOString();
+    liveCode.updatedAt = new Date().toISOString();
+
+    // 保存更新
+    await this.update(liveCodeId, { domainConfig: liveCode.domainConfig });
+
+    return {
+      domainId: selectedDomainId,
+      index: selectedIndex
+    };
+  }
+
+  /**
+   * 重置炮灰域名统计信息
+   */
+  async resetFallbackDomainStats(liveCodeId: string): Promise<DomainConfig | null> {
+    const liveCode = await this.findById(liveCodeId);
+    if (!liveCode?.domainConfig?.fallbackDomains) {
+      return null;
+    }
+
+    liveCode.domainConfig.fallbackDomains.stats = {
+      totalRedirects: 0,
+      domainStats: {}
+    };
+    liveCode.domainConfig.fallbackDomains.currentIndex = 0;
+    liveCode.domainConfig.fallbackDomains.updatedAt = new Date().toISOString();
+    liveCode.updatedAt = new Date().toISOString();
+
+    await this.update(liveCodeId, { domainConfig: liveCode.domainConfig });
 
     return liveCode.domainConfig;
   }

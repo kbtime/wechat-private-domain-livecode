@@ -162,6 +162,11 @@ export interface HealthCheckResult {
 
 export type DomainBindingMode = 'GLOBAL_POOL' | 'CUSTOM_DOMAINS' | 'HYBRID';
 
+/**
+ * 炮灰域名选择模式（落地展示策略）
+ */
+export type FallbackSelectionMode = 'sequential' | 'random' | 'round-robin';
+
 export interface PrimaryDomainConfig {
   domainId: string;
   domain: string;
@@ -171,18 +176,39 @@ export interface PrimaryDomainConfig {
   canUnbind: boolean;
 }
 
+/**
+ * 炮灰域名统计信息
+ */
+export interface FallbackDomainStats {
+  redirectCount: number;
+  lastRedirectAt?: string;
+}
+
 export interface FallbackDomainConfig {
   domainIds: string[];
   priority: number[];
   updatedAt: string;
-  failoverEnabled: boolean;
+  failoverEnabled?: boolean;
+
+  // 落地展示策略
+  selectionMode: FallbackSelectionMode;
+  currentIndex?: number;
+
+  // 统计信息
+  stats: {
+    totalRedirects: number;
+    lastRedirectAt?: string;
+    domainStats: {
+      [domainId: string]: FallbackDomainStats;
+    };
+  };
 }
 
 export interface DomainConfig {
   mode: DomainBindingMode;
   primaryDomain?: PrimaryDomainConfig;
   fallbackDomains: FallbackDomainConfig;
-  strategy: SelectionStrategy;
+  strategy?: SelectionStrategy;
 }
 
 export interface DomainBindingInfo {
@@ -211,7 +237,9 @@ export interface UpdateDomainConfigRequest {
   fallbackDomains?: {
     domainIds: string[];
     priority: number[];
-    failoverEnabled: boolean;
+    selectionMode?: FallbackSelectionMode;
+    currentIndex?: number;
+    failoverEnabled?: boolean;
   };
   strategy?: SelectionStrategy;
 }

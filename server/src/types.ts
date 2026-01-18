@@ -256,6 +256,11 @@ export interface HealthCheckResult {
 export type DomainBindingMode = 'GLOBAL_POOL' | 'CUSTOM_DOMAINS' | 'HYBRID';
 
 /**
+ * 炮灰域名选择模式（落地展示策略）
+ */
+export type FallbackSelectionMode = 'sequential' | 'random' | 'round-robin';
+
+/**
  * 主域名配置（锁定后不可修改）
  */
 export interface PrimaryDomainConfig {
@@ -268,13 +273,34 @@ export interface PrimaryDomainConfig {
 }
 
 /**
- * 备用域名配置（完全灵活）
+ * 炮灰域名统计信息
+ */
+export interface FallbackDomainStats {
+  redirectCount: number;        // 该域名的跳转次数
+  lastRedirectAt?: string;       // 最后跳转时间
+}
+
+/**
+ * 备用域名配置（完全灵活，包含落地展示策略）
  */
 export interface FallbackDomainConfig {
   domainIds: string[];           // 备用域名ID列表
   priority: number[];            // 优先级顺序（对应domainIds）
   updatedAt: string;             // 最后更新时间
-  failoverEnabled: boolean;      // 是否启用故障转移
+  failoverEnabled?: boolean;     // 是否启用故障转移（保留字段）
+
+  // 落地展示策略（新增）
+  selectionMode: FallbackSelectionMode;  // 选择模式
+  currentIndex?: number;         // 当前跳转索引（用于顺序/轮询模式）
+
+  // 统计信息（新增）
+  stats: {
+    totalRedirects: number;      // 总跳转次数
+    lastRedirectAt?: string;      // 最后跳转时间
+    domainStats: {
+      [domainId: string]: FallbackDomainStats;
+    };
+  };
 }
 
 /**
@@ -284,7 +310,7 @@ export interface DomainConfig {
   mode: DomainBindingMode;       // 绑定模式
   primaryDomain?: PrimaryDomainConfig;  // 主域名配置（可选）
   fallbackDomains: FallbackDomainConfig;  // 备用域名配置
-  strategy: SelectionStrategy;   // 域名选择策略
+  strategy?: SelectionStrategy;   // 域名选择策略（保留但不在UI显示）
 }
 
 /**

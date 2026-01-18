@@ -362,11 +362,41 @@ export async function liveCodeRoutes(fastify: FastifyInstance) {
       }
 
       // 返回域名配置，如果不存在则返回默认配置
-      const domainConfig = liveCode.domainConfig || {
+      // 对于旧数据，自动补充缺失的字段
+      const defaultFallbackDomains = {
+        selectionMode: 'sequential' as const,
+        currentIndex: 0,
+        stats: {
+          totalRedirects: 0,
+          domainStats: {} as Record<string, { redirectCount: number; lastRedirectAt?: string }>
+        }
+      };
+
+      const domainConfig: DomainConfig = liveCode.domainConfig ? {
+        ...liveCode.domainConfig,
+        fallbackDomains: {
+          ...defaultFallbackDomains,
+          ...liveCode.domainConfig.fallbackDomains,
+          // 确保 stats 和 domainStats 被正确合并
+          stats: {
+            ...defaultFallbackDomains.stats,
+            ...(liveCode.domainConfig.fallbackDomains.stats || {}),
+            domainStats: {
+              ...(liveCode.domainConfig.fallbackDomains.stats?.domainStats || {})
+            }
+          }
+        }
+      } : {
         mode: 'CUSTOM_DOMAINS',
         fallbackDomains: {
           domainIds: [],
           priority: [],
+          selectionMode: 'sequential',
+          currentIndex: 0,
+          stats: {
+            totalRedirects: 0,
+            domainStats: {}
+          },
           updatedAt: new Date().toISOString(),
           failoverEnabled: false
         },
